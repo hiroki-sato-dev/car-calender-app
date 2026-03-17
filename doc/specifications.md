@@ -10,7 +10,7 @@
 6. [認証仕様](#6-認証仕様)
 7. [Server Actions](#7-server-actions)
 8. [カレンダー UI](#8-カレンダー-ui)
-9. [イベント作成](#9-イベント作成)
+9. [イベント管理](#9-イベント管理)
 10. [重複チェック](#10-重複チェック)
 11. [LINE 通知](#11-line-通知)
 12. [UI 画面](#12-ui-画面)
@@ -20,12 +20,20 @@
 
 ---
 
+## 0. UI 方針
+
+- 絵文字は使用しない（アイコンが必要な場合は SVG アイコンを使用する）
+- 黒基調のダークテーマ（背景: `#0f0f0f`、カード: `zinc-900`）
+- モバイルファースト（スマートフォンブラウザを主対象とする）
+
+---
+
 ## 1. 概要
 
 家族やグループで 1 台の車を共有する際の利用予定を管理するカレンダーアプリ。
 
 - ユーザーはカレンダーに参加し、車の使用予定を登録できる
-- 予定登録時には LINE グループに通知が送信される
+- 予定登録時には LINE グループに通知が送信される（Phase 4 実装予定）
 - 対象デバイス: スマートフォンブラウザ
 
 ---
@@ -35,8 +43,9 @@
 | 区分 | 技術 |
 |------|------|
 | フロントエンド | Next.js (App Router), TypeScript, FullCalendar, TailwindCSS |
-| バックエンド | Next.js Server Actions, Node.js |
-| ORM / DB | Prisma, PostgreSQL |
+| バックエンド | Next.js Server Actions, API Routes |
+| ORM / DB | Prisma, PostgreSQL (Neon) |
+| 認証 | JWT (jsonwebtoken), bcrypt |
 | 外部サービス | LINE Messaging API |
 | デプロイ | Vercel |
 
@@ -48,38 +57,41 @@
 car-calendar-app/
 ├── app/
 │   ├── layout.tsx
-│   ├── page.tsx
+│   ├── page.tsx               # / → /calendars にリダイレクト
 │   ├── login/
-│   │   └── page.tsx
+│   │   └── page.tsx           # ログイン・登録画面（クライアントコンポーネント）
 │   ├── calendars/
-│   │   └── page.tsx
+│   │   ├── page.tsx           # サーバーコンポーネント（セッション取得・一覧取得）
+│   │   └── CalendarsClient.tsx # クライアントコンポーネント（UI・モーダル管理）
 │   ├── calendar/
 │   │   └── [id]/
-│   │       └── page.tsx
+│   │       └── page.tsx       # サーバーコンポーネント（メンバー・イベント取得）
 │   └── api/
+│       ├── auth/
+│       │   ├── login/route.ts
+│       │   ├── register/route.ts
+│       │   └── logout/route.ts
 │       └── line/
 │           └── webhook/
 │               └── route.ts
 ├── components/
 │   ├── calendar/
-│   │   └── CalendarView.tsx
-│   ├── event/
-│   │   └── EventModal.tsx
-│   └── ui/
+│   │   ├── CalendarView.tsx   # FullCalendar ラッパー・モーダル制御
+│   │   └── DayModal.tsx       # 日付クリック時の予定一覧モーダル
+│   └── event/
+│       └── EventModal.tsx     # 予定の作成・閲覧・編集モーダル
 ├── actions/
-│   ├── auth.ts
-│   ├── calendar.ts
-│   └── event.ts
+│   ├── calendar.ts            # createCalendar / joinCalendar / getCalendars
+│   └── event.ts               # createEvent / updateEvent / deleteEvent / getEvents
 ├── lib/
-│   ├── prisma.ts
-│   ├── auth.ts
-│   └── line.ts
+│   ├── prisma.ts              # PrismaClient シングルトン
+│   ├── auth.ts                # signToken / verifyToken / getSession
+│   └── line.ts                # LINE 通知送信（Phase 4）
 ├── types/
-│   ├── event.ts
-│   └── calendar.ts
-├── prisma/
-│   └── schema.prisma
-└── public/
+│   └── event.ts               # EventType 型定義
+├── middleware.ts               # ルート保護（Cookie 存在チェック）
+└── prisma/
+    └── schema.prisma
 ```
 
 ---
@@ -91,8 +103,8 @@ car-calendar-app/
 | カラム名 | 型 | 説明 |
 |----------|----|------|
 | `id` | serial, PK | ユーザー ID |
-| `name` | text | ユーザー名 |
-| `password_hash` | text | ハッシュ化パスワード |
+| `name` | text, UNIQUE | ユーザー名 |
+| `password_hash` | text | bcrypt ハッシュ化パスワード |
 | `created_at` | timestamp | 作成日時 |
 
 ### calendars
@@ -101,8 +113,8 @@ car-calendar-app/
 |----------|----|------|
 | `id` | serial, PK | カレンダー ID |
 | `name` | text | カレンダー名 |
-| `share_code` | text | 参加用コード |
-| `line_group_id` | text | LINE グループ ID |
+| `share_code` | text, UNIQUE | 参加用 6 桁コード |
+| `line_group_id` | text, nullable | LINE グループ ID |
 | `created_by` | int | 作成者ユーザー ID |
 | `created_at` | timestamp | 作成日時 |
 
@@ -111,18 +123,18 @@ car-calendar-app/
 | カラム名 | 型 | 説明 |
 |----------|----|------|
 | `id` | serial, PK | ID |
-| `calendar_id` | int | calendars.id |
-| `user_id` | int | users.id |
+| `calendar_id` | int, FK | calendars.id |
+| `user_id` | int, FK | users.id |
 
 ### events
 
 | カラム名 | 型 | 説明 |
 |----------|----|------|
 | `id` | serial, PK | イベント ID |
-| `calendar_id` | int | calendars.id |
-| `user_id` | int | users.id |
+| `calendar_id` | int, FK | calendars.id |
+| `user_id` | int, FK | users.id |
 | `title` | text | 予定タイトル |
-| `memo` | text | メモ |
+| `memo` | text, nullable | メモ |
 | `start_time` | timestamp | 開始時間 |
 | `end_time` | timestamp | 終了時間 |
 | `created_at` | timestamp | 作成日時 |
@@ -133,21 +145,21 @@ car-calendar-app/
 
 ```prisma
 model User {
-  id           Int      @id @default(autoincrement())
-  name         String   @unique
+  id           Int              @id @default(autoincrement())
+  name         String           @unique
   passwordHash String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime         @default(now())
   calendars    CalendarMember[]
   events       Event[]
 }
 
 model Calendar {
-  id          Int      @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   name        String
-  shareCode   String   @unique
+  shareCode   String           @unique
   lineGroupId String?
   createdBy   Int
-  createdAt   DateTime @default(now())
+  createdAt   DateTime         @default(now())
   members     CalendarMember[]
   events      Event[]
 }
@@ -178,112 +190,156 @@ model Event {
 
 ## 6. 認証仕様
 
-- JWT 認証
+- JWT 認証（`jsonwebtoken` ライブラリ）
 - パスワードは bcrypt でハッシュ化
+- JWT は httpOnly Cookie (`token`) に保存（`sameSite: "lax"`, `secure: true` in production）
+- **認証は API Routes で実装**（Server Actions 非使用）
+  - 理由: Server Actions 内で `redirect()` を使用するとクライアント側の try/catch に捕捉されて処理が止まるため
 
 ### Register
 
 ```
 POST /api/auth/register
+Body: { name: string, password: string }
 ```
 
-**Request:**
-
-```json
-{
-  "name": "taro",
-  "password": "password123"
-}
-```
-
-**処理フロー:**
-
+処理フロー:
 1. `name` 重複チェック
-2. パスワードをハッシュ化
+2. bcrypt でパスワードをハッシュ化
 3. DB に保存
+4. JWT 発行・httpOnly Cookie にセット
+5. `{ success: true }` を返す
 
 ### Login
 
 ```
 POST /api/auth/login
+Body: { name: string, password: string }
 ```
 
-**Request:**
+処理フロー:
+1. ユーザー検索
+2. bcrypt でパスワード照合
+3. JWT 発行・httpOnly Cookie にセット
+4. `{ success: true }` を返す
 
-```json
-{
-  "name": "taro",
-  "password": "password123"
-}
+### Logout
+
+```
+POST /api/auth/logout
 ```
 
-**Response:**
+Cookie の `maxAge` を 0 に設定してトークンを削除。
 
-```json
-{
-  "token": "jwt_token"
-}
+### Middleware
+
+- `middleware.ts` がすべてのページリクエストを保護
+- Cookie に `token` が存在しない場合のみ `/login` にリダイレクト
+- JWT の中身の検証は行わない（`jsonwebtoken` が Edge Runtime 非対応のため）
+- `/api/*` は matcher から除外（保護対象外）
+
+### セッション取得
+
+Server Actions・API Routes 内では `getSession()` を使用:
+
+```typescript
+// lib/auth.ts
+export async function getSession(): Promise<{ userId: number } | null>
 ```
 
 ---
 
 ## 7. Server Actions
 
-### `actions/auth.ts`
-
-| 関数 | 説明 |
-|------|------|
-| `register()` | ユーザー登録 |
-| `login()` | ログイン・JWT 発行 |
+認証は API Routes に移行済み。Server Actions はカレンダー・イベント操作に使用する。
 
 ### `actions/calendar.ts`
 
-| 関数 | 説明 |
-|------|------|
-| `createCalendar()` | カレンダー作成 |
-| `joinCalendar()` | 共有コードでカレンダー参加 |
-| `getCalendars()` | 参加中カレンダー一覧取得 |
+| 関数 | 引数 | 戻り値 | 説明 |
+|------|------|--------|------|
+| `createCalendar(name)` | `string` | `{ calendar } \| { error }` | カレンダー作成・共有コード生成 |
+| `joinCalendar(shareCode)` | `string` | `{ calendar } \| { error }` | 共有コードでカレンダー参加 |
+| `getCalendars()` | - | `Calendar[]` | 参加中カレンダー一覧取得 |
 
 ### `actions/event.ts`
 
-| 関数 | 説明 |
-|------|------|
-| `createEvent()` | 予定作成 |
-| `updateEvent()` | 予定更新 |
-| `deleteEvent()` | 予定削除 |
-| `getEvents()` | 予定一覧取得 |
+| 関数 | 引数 | 戻り値 | 説明 |
+|------|------|--------|------|
+| `getEvents(calendarId)` | `number` | `EventType[]` | 予定一覧取得（userName 含む） |
+| `createEvent(data)` | `{ calendarId, title, memo, startTime, endTime }` | `{ event } \| { error }` | 予定作成（重複チェックあり） |
+| `updateEvent(eventId, data)` | `number, { title, memo, startTime, endTime }` | `{ event } \| { error }` | 予定更新（オーナーのみ） |
+| `deleteEvent(eventId)` | `number` | `{ success } \| { error }` | 予定削除（オーナーのみ） |
 
 ---
 
 ## 8. カレンダー UI
 
-- FullCalendar 使用
-- 月表示
+### FullCalendar 設定
 
-**イベント表示例:**
+- プラグイン: `dayGridPlugin`, `interactionPlugin`
+- 表示: `dayGridMonth`（月表示固定）
+- ロケール: `ja`
+- 日付セル: 数字のみ表示（"日" サフィックスを除去）
+- `dayMaxEvents: false`（CSS で高さ制限、+more リンク非表示）
+
+### ユーザーカラー
+
+参加順に以下の 6 色を割り当て（循環）:
 
 ```
-13:00–17:00
-兄
-ドライブ
+#3b82f6（青）、#22c55e（緑）、#f97316（オレンジ）
+#a855f7（紫）、#ec4899（ピンク）、#14b8a6（ティール）
 ```
+
+カレンダーヘッダーにメンバー名とカラードットを表示。
+
+### イベント表示
+
+| 種別 | 表示方法 |
+|------|----------|
+| 1日内の予定 | ユーザーカラーのドット |
+| 日跨ぎの予定 | ユーザーカラーのバー（userName 表示） |
+
+### クリック動作
+
+- 日付セルクリック → DayModal を開く
+- イベント（ドット・バー）クリック → クリックした日付の DayModal を開く
+- DayModal 内の予定をクリック → EventModal（閲覧モード）を開く
+- DayModal の「この日に予定を追加」→ EventModal（作成モード）を開く
 
 ---
 
-## 9. イベント作成
+## 9. イベント管理
 
-**入力項目:**
+### 入力項目
 
-- 開始時間 (start time)
-- 終了時間 (end time)
-- タイトル (title)
-- メモ (memo)
+| 項目 | 必須 | 説明 |
+|------|------|------|
+| タイトル | 必須 | 予定名 |
+| 開始日 | 必須 | date 入力（カレンダー選択） |
+| 開始時刻 | 必須 | time 入力 |
+| 終了日 | 必須 | date 入力 |
+| 終了時刻 | 必須 | time 入力 |
+| メモ | 任意 | 補足情報 |
 
-**処理フロー:**
+- 日付と時刻は別々の input に分割（モバイル UX 向上のため `datetime-local` は使用しない）
+- 時刻の表示は端末のローカルタイムを使用（UTC 変換しない）
 
-1. 重複チェック
-2. DB 保存
-3. LINE 通知送信
+### EventModal のモード
+
+| モード | 表示内容 | 遷移 |
+|--------|----------|------|
+| `view` | 予定の詳細（タイトル・登録者・日時・メモ） | 編集・削除ボタン（オーナーのみ） |
+| `edit` | 編集フォーム（既存値を初期値に設定） | 保存・キャンセル |
+| `create` | 空フォーム（選択日付を初期値に設定） | 登録・キャンセル |
+
+### 処理フロー（作成）
+
+1. バリデーション（タイトル必須、終了 > 開始）
+2. 重複チェック
+3. DB 保存
+4. LINE 通知送信（Phase 4 実装予定）
+5. クライアント側 state に反映（画面リロードなし）
 
 ---
 
@@ -292,14 +348,14 @@ POST /api/auth/login
 同一カレンダー内で時間帯が重複する予定が存在しないかチェックする。
 
 ```sql
-SELECT *
-FROM events
-WHERE calendar_id = ?
-  AND start_time < :new_end
-  AND end_time   > :new_start;
+SELECT * FROM events
+WHERE calendar_id = :calendarId
+  AND start_time < :newEnd
+  AND end_time   > :newStart;
 ```
 
-重複が存在する場合はエラーを返し、予定登録を中止する。
+重複が存在する場合はエラー `"この時間帯はすでに予定が入っています"` を返し、登録を中止する。
+更新時は自分自身のイベントを除外してチェックする。
 
 ---
 
@@ -308,36 +364,66 @@ WHERE calendar_id = ?
 ### 設定手順
 
 1. LINE Bot をグループに追加
-2. Webhook でグループ ID を取得・DB に保存
-3. 予定登録時に通知を送信
+2. Webhook でグループ参加イベントを受信し `lineGroupId` を DB に保存
+3. 予定登録時にグループへ通知送信
+
+### Webhook エンドポイント
+
+```
+POST /api/line/webhook
+```
+
+署名検証必須（`@line/bot-sdk` の `validateSignature` を使用）。
 
 ### 通知メッセージ例
 
 ```
-🚗 車の予定
-兄
-4/10 13:00〜17:00
-用途: ドライブ
+車の予定が登録されました
+
+登録者: 田中太郎
+4/10 13:00 〜 17:00
+タイトル: 買い物
+メモ: スーパーへ
 ```
 
 ---
 
 ## 12. UI 画面
 
-### ログイン画面
+### ログイン画面 (`/login`)
 
-- ユーザー名 (name)
-- パスワード (password)
+- ユーザー名・パスワード入力
+- ログイン / 新規登録 をタブで切り替え
+- 成功時: `window.location.href = "/calendars"` でリダイレクト
 
-### カレンダー一覧画面
+### カレンダー一覧画面 (`/calendars`)
 
-- 参加中カレンダー名の一覧表示
-- ボタン: **作成** / **参加**
+- ヘッダー: アプリ名 + ユーザー名（タップ → ログアウトドロップダウン）
+- カレンダーリスト: 名前 + 共有コード + コピーボタン（2 秒後に元の表示に戻る）
+- ボタン: 「参加」「+ 作成」
+- モーダル:
+  - **作成モーダル**: カレンダー名入力 → 作成後に共有コード表示モーダルへ遷移
+  - **参加モーダル**: 共有コード入力（大文字変換して照合）
+  - **コード表示モーダル**: 生成された共有コードを大きく表示・コピーボタン
 
-### カレンダー画面
+### カレンダー画面 (`/calendar/[id]`)
 
-- 月表示のカレンダー
-- 日付クリック → 予定作成モーダルを表示
+- ヘッダー: カレンダー名 + メンバー一覧（カラードット + 名前）+ 戻るボタン
+- FullCalendar 月表示
+- 日付クリック → DayModal
+
+### DayModal
+
+- 選択日付のタイトル（例: 4月10日（木））
+- 当日の予定リスト（カラードット + タイトル + 時間帯 + 登録者）
+- 日跨ぎ予定も当該日に表示（日付範囲オーバーラップで判定）
+- 「+ この日に予定を追加」ボタン
+
+### EventModal
+
+- 閲覧モード: タイトル・登録者・日時・メモを表示。オーナーのみ編集・削除ボタンを表示
+- 編集モード: フォームに既存値をセット。保存時に `updateEvent` を呼び出し
+- 作成モード: 日付を DayModal から引き継いで初期値にセット
 
 ---
 
@@ -348,18 +434,20 @@ WHERE calendar_id = ?
 | 同時利用ユーザー数 | 5〜20 ユーザー |
 | 想定カレンダー数 | 100 以下 |
 | 対象デバイス | スマートフォン（ブラウザ） |
+| 画面更新 | Server Actions 後はクライアント state を直接更新（リロードなし） |
 
 ---
 
 ## 14. 開発スケジュール
 
-| 機能 | 工数 |
-|------|------|
-| 認証 | 1 日 |
-| カレンダー管理 | 2 日 |
-| 予定管理 | 2 日 |
-| LINE 連携 | 1 日 |
-| **合計** | **6〜7 日** |
+| フェーズ | 内容 | 状態 |
+|----------|------|------|
+| Phase 0 | ドキュメント・リポジトリ・プロジェクト初期化 | 完了 |
+| Phase 1 | 認証（登録・ログイン・ログアウト・Middleware） | 完了 |
+| Phase 2 | カレンダー管理（作成・参加・一覧） | 完了 |
+| Phase 3 | 予定管理（作成・表示・編集・削除・重複チェック） | 完了 |
+| Phase 4 | LINE 連携（Webhook・通知送信） | 未着手 |
+| Phase 5 | デプロイ（Vercel・環境変数設定） | 未着手 |
 
 ---
 
@@ -373,11 +461,11 @@ WHERE calendar_id = ?
         ▼
   Vercel (Next.js App Router)
         │
-        ▼
-  Server Actions / API Routes
+        ├── API Routes (/api/auth/*)  ← 認証
+        ├── Server Actions            ← カレンダー・イベント操作
         │
         ▼
-   PostgreSQL (クラウドDB) ── Prisma ORM
+   PostgreSQL (Neon) ── Prisma ORM
         │
         ▼
    LINE Messaging API
@@ -393,24 +481,35 @@ WHERE calendar_id = ?
 
 #### データベース
 
-- PostgreSQL クラウド DB（Supabase / Railway / Neon 等）
+- PostgreSQL クラウド DB（Neon）
 - Prisma で型安全操作
 - バックアップ対応
 
 #### LINE Bot / Webhook
 
 - Webhook URL: `https://{your-app}.vercel.app/api/line/webhook`
-- 予定登録時に通知送信
+- 予定登録時に通知送信（Phase 4 実装予定）
 
 #### デプロイ / CI
 
 - GitHub 連携で `push` → 自動デプロイ
-- GitHub Actions で簡易テスト可能
+- main ブランチへのマージでデプロイ
 
 #### セキュリティ
 
 | 対策 | 内容 |
 |------|------|
 | 通信暗号化 | HTTPS（Vercel） |
-| 認証 | JWT 認証 + bcrypt ハッシュ化 |
-| 機密情報管理 | DB 接続・LINE トークンは環境変数で管理 |
+| 認証 | JWT (httpOnly Cookie) + bcrypt ハッシュ化 |
+| 機密情報管理 | DB 接続・JWT シークレット・LINE トークンは環境変数で管理 |
+| アクセス制御 | カレンダーメンバー以外はカレンダー画面にアクセス不可 |
+| 予定操作 | 編集・削除は自分の予定のみ可能 |
+
+### 環境変数
+
+| 変数名 | 説明 |
+|--------|------|
+| `DATABASE_URL` | Neon の PostgreSQL 接続文字列 |
+| `JWT_SECRET` | JWT 署名用シークレット |
+| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Bot チャンネルアクセストークン |
+| `LINE_CHANNEL_SECRET` | LINE Webhook 署名検証用シークレット |

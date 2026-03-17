@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int              @id @default(autoincrement())
+  name         String           @unique
+  passwordHash String
+  createdAt    DateTime         @default(now())
+  calendars    CalendarMember[]
+  events       Event[]
+}
+
+model Calendar {
+  id          Int              @id @default(autoincrement())
+  name        String
+  shareCode   String           @unique
+  lineGroupId String?
+  createdBy   Int
+  createdAt   DateTime         @default(now())
+  members     CalendarMember[]
+  events      Event[]
+}
+
+model CalendarMember {
+  id         Int      @id @default(autoincrement())
+  calendarId Int
+  userId     Int
+  calendar   Calendar @relation(fields: [calendarId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model Event {
+  id         Int      @id @default(autoincrement())
+  calendarId Int
+  userId     Int
+  title      String
+  memo       String?
+  startTime  DateTime
+  endTime    DateTime
+  createdAt  DateTime @default(now())
+  calendar   Calendar @relation(fields: [calendarId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
