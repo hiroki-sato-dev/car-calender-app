@@ -45,18 +45,21 @@ export default function CalendarView({
     const endD = new Date(e.endTime);
     const isMultiDay = startD.toDateString() !== endD.toDateString();
     const color = userColors[e.userId] ?? "#3b82f6";
-    const pad = (n: number) => String(n).padStart(2, "0");
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     if (isMultiDay) {
-      // display: 'background' で各セルに背景として描画（行高さ変化なし）
       const exclusiveEnd = new Date(endD.getFullYear(), endD.getMonth(), endD.getDate() + 1);
       return [{
         id: String(e.id),
-        title: e.userName,
-        start: `${startD.getFullYear()}-${pad(startD.getMonth() + 1)}-${pad(startD.getDate())}`,
-        end: `${exclusiveEnd.getFullYear()}-${pad(exclusiveEnd.getMonth() + 1)}-${pad(exclusiveEnd.getDate())}`,
-        display: "background",
+        title: "",
+        start: fmt(startD),
+        end: fmt(exclusiveEnd),
+        allDay: true,
         backgroundColor: color,
+        borderColor: "transparent",
+        classNames: ["fc-event-bar-item"],
+        order: 0,
         extendedProps: { event: e, isMultiDay: true },
       }];
     }
@@ -180,27 +183,27 @@ export default function CalendarView({
           dayMaxEvents={false}
           dayCellClassNames="cursor-pointer"
           eventContent={(arg) => {
-            if (arg.event.display === "background") return undefined;
             const color = arg.event.backgroundColor ?? "#3b82f6";
+            if (arg.event.classNames.includes("fc-event-bar-item")) {
+              return (
+                <div
+                  style={{
+                    height: "5px",
+                    backgroundColor: color,
+                    borderRadius: "3px",
+                    width: "100%",
+                    position: "relative",
+                    zIndex: 4,
+                  }}
+                />
+              );
+            }
             return (
               <span
                 style={{ backgroundColor: color }}
                 className="fc-dot-event"
               />
             );
-          }}
-          eventDidMount={(info) => {
-            // background イベント（日跨ぎバー）を細い横線に変形
-            if (info.event.display === "background") {
-              const el = info.el as HTMLElement;
-              el.style.top = "auto";
-              el.style.bottom = "4px";
-              el.style.height = "5px";
-              el.style.left = "2px";
-              el.style.right = "2px";
-              el.style.opacity = "1";
-              el.style.borderRadius = "2px";
-            }
           }}
         />
       </div>
