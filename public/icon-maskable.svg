@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 背景（フルブリード） -->
+  <rect width="512" height="512" fill="#0f0f0f"/>
+  <!-- カレンダー本体（セーフゾーン内に収める: 512の80% = 約410, 中央揃え余白51px） -->
+  <rect x="86" y="134" width="340" height="308" rx="24" fill="#18181b" stroke="#3f3f46" stroke-width="8"/>
+  <!-- ヘッダー -->
+  <rect x="86" y="134" width="340" height="88" rx="24" fill="#2563eb"/>
+  <rect x="86" y="186" width="340" height="36" fill="#2563eb"/>
+  <!-- リング左 -->
+  <rect x="162" y="102" width="24" height="64" rx="12" fill="#60a5fa"/>
+  <!-- リング右 -->
+  <rect x="326" y="102" width="24" height="64" rx="12" fill="#60a5fa"/>
+  <!-- グリッド点 -->
+  <rect x="126" y="262" width="36" height="36" rx="8" fill="#3f3f46"/>
+  <rect x="238" y="262" width="36" height="36" rx="8" fill="#3f3f46"/>
+  <rect x="350" y="262" width="36" height="36" rx="8" fill="#3f3f46"/>
+  <rect x="126" y="326" width="36" height="36" rx="8" fill="#3f3f46"/>
+  <rect x="238" y="326" width="36" height="36" rx="8" fill="#2563eb"/>
+  <rect x="350" y="326" width="36" height="36" rx="8" fill="#3f3f46"/>
+</svg>
