@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCalendar, joinCalendar } from "@/actions/calendar";
+import { updateUserName } from "@/actions/auth";
 import Spinner from "@/components/ui/Spinner";
 
 type Calendar = {
@@ -29,10 +30,30 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [nameModal, setNameModal] = useState(false);
+  const [inputNewName, setInputNewName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameLoading, setNameLoading] = useState(false);
+  const [currentUserName, setCurrentUserName] = useState(userName);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
+  }
+
+  async function handleUpdateName() {
+    if (!inputNewName.trim()) return;
+    setNameLoading(true);
+    setNameError(null);
+    const result = await updateUserName(inputNewName.trim());
+    setNameLoading(false);
+    if (result.error) {
+      setNameError(result.error);
+    } else if (result.name) {
+      setCurrentUserName(result.name);
+      setNameModal(false);
+      setInputNewName("");
+    }
   }
 
   function copyCode(id: number, code: string) {
@@ -89,13 +110,19 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
             onClick={() => setUserMenuOpen((v) => !v)}
             className="text-sm text-zinc-300 hover:text-white transition px-2 py-1 rounded-lg hover:bg-zinc-800"
           >
-            {userName}
+            {currentUserName}
           </button>
           {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl overflow-hidden z-50 min-w-32">
+            <div className="absolute right-0 top-full mt-1 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl overflow-hidden z-50 min-w-36">
+              <button
+                onClick={() => { setUserMenuOpen(false); setNameModal(true); setInputNewName(""); setNameError(null); }}
+                className="w-full text-left px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+              >
+                名前を変更
+              </button>
               <button
                 onClick={handleLogout}
-                className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-zinc-700 transition"
+                className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-zinc-700 transition border-t border-zinc-700"
               >
                 ログアウト
               </button>
@@ -233,6 +260,45 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 名前変更モーダル */}
+      {nameModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50"
+          onClick={() => setNameModal(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-bold text-lg mb-4">名前を変更</h2>
+            <input
+              type="text"
+              placeholder={`現在: ${currentUserName}`}
+              value={inputNewName}
+              onChange={(e) => setInputNewName(e.target.value)}
+              className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+            />
+            {nameError && <p className="text-red-400 text-sm mb-3">{nameError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setNameModal(false)}
+                className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleUpdateName}
+                disabled={nameLoading}
+                className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-sm disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {nameLoading && <Spinner />}
+                {nameLoading ? "変更中..." : "変更"}
+              </button>
+            </div>
           </div>
         </div>
       )}

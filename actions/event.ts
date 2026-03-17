@@ -63,6 +63,7 @@ export async function createEvent(data: {
   const calendar = await prisma.calendar.findUnique({ where: { id: data.calendarId } });
   if (calendar?.lineGroupId) {
     const message = buildEventMessage({
+      calendarName: calendar.name,
       userName: event.user.name,
       title: event.title,
       memo: event.memo,

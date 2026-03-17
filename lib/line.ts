@@ -15,6 +15,7 @@ export async function sendLineNotification(
 }
 
 export function buildEventMessage(params: {
+  calendarName: string;
   userName: string;
   title: string;
   memo: string | null;
@@ -31,7 +32,7 @@ export function buildEventMessage(params: {
     });
 
   const lines = [
-    "車の予定が登録されました",
+    `${params.calendarName}の予定が登録されました`,
     "",
     `登録者: ${params.userName}`,
     `日時: ${fmt(params.startTime)} 〜 ${fmt(params.endTime)}`,

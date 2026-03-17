@@ -63,6 +63,27 @@ export async function login(formData: FormData) {
   return { success: true };
 }
 
+export async function updateUserName(newName: string) {
+  const { getSession } = await import("@/lib/auth");
+  const session = await getSession();
+  if (!session) return { error: "ログインが必要です" };
+
+  if (!newName.trim()) return { error: "名前を入力してください" };
+
+  const existing = await prisma.user.findUnique({ where: { name: newName } });
+  if (existing) return { error: "この名前はすでに使われています" };
+
+  const user = await prisma.user.update({
+    where: { id: session.userId },
+    data: { name: newName },
+  });
+
+  const token = signToken({ userId: user.id, name: user.name });
+  await setAuthCookie(token);
+
+  return { success: true, name: user.name };
+}
+
 export async function logout() {
   const cookieStore = await cookies();
   cookieStore.delete("token");
