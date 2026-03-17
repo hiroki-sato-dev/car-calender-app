@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCalendar, joinCalendar } from "@/actions/calendar";
+import Spinner from "@/components/ui/Spinner";
 
 type Calendar = {
   id: number;
@@ -24,8 +25,10 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
   const [newShareCode, setNewShareCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [navigatingId, setNavigatingId] = useState<number | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -103,7 +106,7 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
 
       <main className="max-w-lg mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold">カレンダー一覧</h1>
+          <h1 className="text-xl font-bold">登録済みカレンダー</h1>
           <div className="flex gap-2">
             <button
               onClick={() => { setModal("join"); setError(null); }}
@@ -129,12 +132,14 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
         ) : (
           <ul className="space-y-3">
             {calendars.map((cal) => (
-              <li key={cal.id} className="bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-600 transition">
+              <li key={cal.id} className="bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-600 active:scale-[0.98] active:opacity-75 transition cursor-pointer">
                 <button
-                  onClick={() => router.push(`/calendar/${cal.id}`)}
-                  className="w-full text-left px-5 pt-4 pb-3"
+                  onClick={() => { setNavigatingId(cal.id); router.push(`/calendar/${cal.id}`); }}
+                  disabled={navigatingId === cal.id}
+                  className="w-full text-left px-5 pt-4 pb-3 flex items-center justify-between"
                 >
                   <p className="font-semibold">{cal.name}</p>
+                  {navigatingId === cal.id && <Spinner />}
                 </button>
                 <div className="flex items-center justify-between px-5 pb-3">
                   <p className="text-zinc-500 text-xs">コード: {cal.shareCode}</p>
@@ -177,7 +182,8 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
                   <button onClick={closeModal} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition text-sm">
                     キャンセル
                   </button>
-                  <button onClick={handleCreate} disabled={loading} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-sm disabled:opacity-40">
+                  <button onClick={handleCreate} disabled={loading} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-sm disabled:opacity-40 flex items-center justify-center gap-2">
+                    {loading && <Spinner />}
                     {loading ? "作成中..." : "作成"}
                   </button>
                 </div>
@@ -200,7 +206,8 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
                   <button onClick={closeModal} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition text-sm">
                     キャンセル
                   </button>
-                  <button onClick={handleJoin} disabled={loading} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-sm disabled:opacity-40">
+                  <button onClick={handleJoin} disabled={loading} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-sm disabled:opacity-40 flex items-center justify-center gap-2">
+                    {loading && <Spinner />}
                     {loading ? "参加中..." : "参加"}
                   </button>
                 </div>
@@ -216,10 +223,10 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
                   <p className="text-3xl font-bold tracking-widest text-blue-400">{newShareCode}</p>
                 </div>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(newShareCode); }}
+                  onClick={() => { navigator.clipboard.writeText(newShareCode); setCodeCopied(true); setTimeout(() => setCodeCopied(false), 2000); }}
                   className="w-full py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition text-sm mb-2"
                 >
-                  コードをコピー
+                  {codeCopied ? "コピーしました" : "コードをコピー"}
                 </button>
                 <button onClick={closeModal} className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-sm">
                   閉じる

@@ -9,6 +9,8 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { EventType } from "@/types/event";
 import EventModal from "@/components/event/EventModal";
 import DayModal from "@/components/calendar/DayModal";
+import { leaveCalendar } from "@/actions/calendar";
+import Spinner from "@/components/ui/Spinner";
 
 type Member = { userId: number; name: string; color: string };
 
@@ -39,24 +41,42 @@ export default function CalendarView({
   const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+
+  async function handleLeave() {
+    setLeaveLoading(true);
+    await leaveCalendar(calendarId);
+    router.push("/calendars");
+  }
+
+  function handleCopyCode() {
+    navigator.clipboard.writeText(`登録コード: ${shareCode}`);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  }
 
   const fcEvents: EventInput[] = events.flatMap((e): EventInput[] => {
     const startD = new Date(e.startTime);
     const endD = new Date(e.endTime);
     const isMultiDay = startD.toDateString() !== endD.toDateString();
     const color = userColors[e.userId] ?? "#3b82f6";
-    const pad = (n: number) => String(n).padStart(2, "0");
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     if (isMultiDay) {
-      // display: 'background' で各セルに背景として描画（行高さ変化なし）
       const exclusiveEnd = new Date(endD.getFullYear(), endD.getMonth(), endD.getDate() + 1);
       return [{
         id: String(e.id),
-        title: e.userName,
-        start: `${startD.getFullYear()}-${pad(startD.getMonth() + 1)}-${pad(startD.getDate())}`,
-        end: `${exclusiveEnd.getFullYear()}-${pad(exclusiveEnd.getMonth() + 1)}-${pad(exclusiveEnd.getDate())}`,
-        display: "background",
+        title: "",
+        start: fmt(startD),
+        end: fmt(exclusiveEnd),
+        allDay: true,
         backgroundColor: color,
+        borderColor: "transparent",
+        classNames: ["fc-event-bar-item"],
+        order: 0,
         extendedProps: { event: e, isMultiDay: true },
       }];
     }
@@ -115,14 +135,22 @@ export default function CalendarView({
     <div className="min-h-screen bg-[#0f0f0f] text-white">
       {/* ヘッダー */}
       <header className="border-b border-zinc-800 px-4 py-3">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/calendars")}
+              className="text-zinc-400 hover:text-white transition text-sm"
+            >
+              ← 戻る
+            </button>
+            <h1 className="font-bold text-lg">{calendarName}</h1>
+          </div>
           <button
-            onClick={() => router.push("/calendars")}
-            className="text-zinc-400 hover:text-white transition text-sm"
+            onClick={() => setLeaveConfirmOpen(true)}
+            className="text-xs text-zinc-500 hover:text-red-400 transition"
           >
-            ← 戻る
+            カレンダーを削除
           </button>
-          <h1 className="font-bold text-lg">{calendarName}</h1>
         </div>
         <div className="flex flex-wrap gap-3">
           {memberList.map(({ userId, name, color }) => (
@@ -150,7 +178,7 @@ export default function CalendarView({
                 登録コード: {shareCode}
               </code>
               <button
-                onClick={() => navigator.clipboard.writeText(`登録コード: ${shareCode}`)}
+                onClick={handleCopyCode}
                 className="text-zinc-400 hover:text-white text-xs underline"
               >
                 コピー
@@ -180,8 +208,21 @@ export default function CalendarView({
           dayMaxEvents={false}
           dayCellClassNames="cursor-pointer"
           eventContent={(arg) => {
-            if (arg.event.display === "background") return undefined;
             const color = arg.event.backgroundColor ?? "#3b82f6";
+            if (arg.event.classNames.includes("fc-event-bar-item")) {
+              return (
+                <div
+                  style={{
+                    height: "5px",
+                    backgroundColor: color,
+                    borderRadius: "3px",
+                    width: "100%",
+                    position: "relative",
+                    zIndex: 4,
+                  }}
+                />
+              );
+            }
             return (
               <span
                 style={{ backgroundColor: color }}
@@ -189,21 +230,50 @@ export default function CalendarView({
               />
             );
           }}
-          eventDidMount={(info) => {
-            // background イベント（日跨ぎバー）を細い横線に変形
-            if (info.event.display === "background") {
-              const el = info.el as HTMLElement;
-              el.style.top = "auto";
-              el.style.bottom = "4px";
-              el.style.height = "5px";
-              el.style.left = "2px";
-              el.style.right = "2px";
-              el.style.opacity = "1";
-              el.style.borderRadius = "2px";
-            }
-          }}
         />
       </div>
+
+      {/* 退会確認モーダル */}
+      {leaveConfirmOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50"
+          onClick={() => setLeaveConfirmOpen(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-bold text-lg mb-2">カレンダーを削除</h2>
+            <p className="text-zinc-400 text-sm mb-5">
+              「{calendarName}」を削除しますか？<br />
+              他のメンバーのカレンダーには影響しません。
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setLeaveConfirmOpen(false)}
+                className="flex-1 py-2.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleLeave}
+                disabled={leaveLoading}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white transition text-sm disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {leaveLoading && <Spinner />}
+                {leaveLoading ? "削除中..." : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* コピー完了トースト */}
+      {codeCopied && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-700 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 pointer-events-none">
+          コピーしました
+        </div>
+      )}
 
       {/* 日付モーダル */}
       {dayModalOpen && selectedDate && (

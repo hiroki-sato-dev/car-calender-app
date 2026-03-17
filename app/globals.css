@@ -19,6 +19,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ボタン・タップフィードバック */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+button:active, a:active {
+  opacity: 0.65 !important;
+  transform: scale(0.96) !important;
+  transition: opacity 0.08s ease, transform 0.08s ease !important;
+}
+
 /* FullCalendar ダークテーマ */
 .calendar-wrapper .fc {
   --fc-border-color: #27272a;
@@ -76,10 +86,32 @@ body {
   width: auto;
 }
 
+/* バー（日跨ぎ予定）*/
+.calendar-wrapper .fc .fc-event.fc-event-bar-item {
+  cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 2px 0 !important;
+  position: relative !important;
+  z-index: 4 !important;
+}
+.calendar-wrapper .fc .fc-event.fc-event-bar-item .fc-event-main {
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+/* カレンダーセルのタップフィードバック */
+.calendar-wrapper .fc .fc-daygrid-day:active {
+  opacity: 0.7;
+}
+
 /* 全セルを固定高にして週ごとの高さを均一に保つ */
 .calendar-wrapper .fc .fc-daygrid-day-frame {
   height: 64px !important;
-  overflow: hidden;
+  overflow-x: visible !important;
+  overflow-y: clip !important;
 }
 
 /* day events エリア */

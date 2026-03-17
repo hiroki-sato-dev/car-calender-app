@@ -25,6 +25,8 @@
 - 絵文字は使用しない（アイコンが必要な場合は SVG アイコンを使用する）
 - 黒基調のダークテーマ（背景: `#0f0f0f`、カード: `zinc-900`）
 - モバイルファースト（スマートフォンブラウザを主対象とする）
+- viewport メタタグを設定し、スマートフォンの画面幅に合わせて表示する
+- タップ可能な要素（`button`, `a`, カレンダーセル）はすべてタップフィードバックを付与する
 
 ---
 
@@ -33,7 +35,7 @@
 家族やグループで 1 台の車を共有する際の利用予定を管理するカレンダーアプリ。
 
 - ユーザーはカレンダーに参加し、車の使用予定を登録できる
-- 予定登録時には LINE グループに通知が送信される（Phase 4 実装予定）
+- 予定登録時には LINE グループに通知が送信される
 - 対象デバイス: スマートフォンブラウザ
 
 ---
@@ -46,7 +48,7 @@
 | バックエンド | Next.js Server Actions, API Routes |
 | ORM / DB | Prisma, PostgreSQL (Neon) |
 | 認証 | JWT (jsonwebtoken), bcrypt |
-| 外部サービス | LINE Messaging API |
+| 外部サービス | LINE Messaging API (`@line/bot-sdk`) |
 | デプロイ | Vercel |
 
 ---
@@ -56,7 +58,7 @@
 ```
 car-calendar-app/
 ├── app/
-│   ├── layout.tsx
+│   ├── layout.tsx             # viewport 設定・メタデータ
 │   ├── page.tsx               # / → /calendars にリダイレクト
 │   ├── login/
 │   │   └── page.tsx           # ログイン・登録画面（クライアントコンポーネント）
@@ -65,7 +67,7 @@ car-calendar-app/
 │   │   └── CalendarsClient.tsx # クライアントコンポーネント（UI・モーダル管理）
 │   ├── calendar/
 │   │   └── [id]/
-│   │       └── page.tsx       # サーバーコンポーネント（メンバー・イベント取得）
+│   │       └── page.tsx       # サーバーコンポーネント（メンバー・イベント・lineGroupId 取得）
 │   └── api/
 │       ├── auth/
 │       │   ├── login/route.ts
@@ -76,7 +78,7 @@ car-calendar-app/
 │               └── route.ts
 ├── components/
 │   ├── calendar/
-│   │   ├── CalendarView.tsx   # FullCalendar ラッパー・モーダル制御
+│   │   ├── CalendarView.tsx   # FullCalendar ラッパー・モーダル制御・LINE設定案内
 │   │   └── DayModal.tsx       # 日付クリック時の予定一覧モーダル
 │   └── event/
 │       └── EventModal.tsx     # 予定の作成・閲覧・編集モーダル
@@ -86,7 +88,7 @@ car-calendar-app/
 ├── lib/
 │   ├── prisma.ts              # PrismaClient シングルトン
 │   ├── auth.ts                # signToken / verifyToken / getSession
-│   └── line.ts                # LINE 通知送信（Phase 4）
+│   └── line.ts                # sendLineNotification / buildEventMessage
 ├── types/
 │   └── event.ts               # EventType 型定義
 ├── middleware.ts               # ルート保護（Cookie 存在チェック）
@@ -266,7 +268,7 @@ export async function getSession(): Promise<{ userId: number } | null>
 | 関数 | 引数 | 戻り値 | 説明 |
 |------|------|--------|------|
 | `getEvents(calendarId)` | `number` | `EventType[]` | 予定一覧取得（userName 含む） |
-| `createEvent(data)` | `{ calendarId, title, memo, startTime, endTime }` | `{ event } \| { error }` | 予定作成（重複チェックあり） |
+| `createEvent(data)` | `{ calendarId, title, memo, startTime, endTime }` | `{ event } \| { error }` | 予定作成（重複チェック・LINE通知あり） |
 | `updateEvent(eventId, data)` | `number, { title, memo, startTime, endTime }` | `{ event } \| { error }` | 予定更新（オーナーのみ） |
 | `deleteEvent(eventId)` | `number` | `{ success } \| { error }` | 予定削除（オーナーのみ） |
 
@@ -295,10 +297,31 @@ export async function getSession(): Promise<{ userId: number } | null>
 
 ### イベント表示
 
-| 種別 | 表示方法 |
-|------|----------|
-| 1日内の予定 | ユーザーカラーのドット |
-| 日跨ぎの予定 | ユーザーカラーのバー（userName 表示） |
+| 種別 | 表示方法 | 実装 |
+|------|----------|------|
+| 1日内の予定 | ユーザーカラーの丸ドット | timed event + `eventContent` でドット描画 |
+| 日跨ぎの予定 | ユーザーカラーの横バー（セル上部） | `allDay: true` スパニングイベント + CSS スタイリング |
+
+#### 日跨ぎイベントのバー表示の詳細
+
+- `allDay: true` で開始日〜終了日（exclusive end）を設定したスパニングイベントを生成
+- `classNames: ["fc-event-bar-item"]` でドットと区別
+- `order: 0`（ドットは `order: 1`）でバーをセル上部に配置
+- CSS `.fc-event.fc-event-bar-item` に `height: 6px; border-radius: 3px` を適用
+- `.fc-event-main { display: none }` でデフォルトのタイトルテキストを非表示
+- セルフレームの CSS を `overflow-x: visible; overflow-y: clip` とすることでバーが隣接セルにまたがって表示される
+
+#### セル高さの均一化
+
+```css
+.calendar-wrapper .fc .fc-daygrid-day-frame {
+  height: 64px !important;
+  overflow-x: visible !important;
+  overflow-y: clip !important;
+}
+```
+
+`overflow-y: clip` を使用することで、縦方向のオーバーフローを切り取りつつ、スパニングイベントが横方向に隣接セルへはみ出すことを許容する。
 
 ### クリック動作
 
@@ -338,7 +361,7 @@ export async function getSession(): Promise<{ userId: number } | null>
 1. バリデーション（タイトル必須、終了 > 開始）
 2. 重複チェック
 3. DB 保存
-4. LINE 通知送信（Phase 4 実装予定）
+4. LINE 通知送信（`lineGroupId` が設定されている場合のみ）
 5. クライアント側 state に反映（画面リロードなし）
 
 ---
@@ -363,9 +386,21 @@ WHERE calendar_id = :calendarId
 
 ### 設定手順
 
-1. LINE Bot をグループに追加
-2. Webhook でグループ参加イベントを受信し `lineGroupId` を DB に保存
-3. 予定登録時にグループへ通知送信
+1. LINE Developers で Messaging API チャンネルを作成
+2. LINE Official Account Manager で応答モードを「Bot」・Webhook を「オン」に設定
+3. Webhook URL を `https://{app}.vercel.app/api/line/webhook` に設定して検証
+4. LINE Bot をグループに追加
+5. グループ内で `登録コード: XXXXXX` と送信（XXXXXX はアプリの共有コード）
+6. Webhook が受信し `lineGroupId` を DB に保存 → 以降、予定登録時に通知が届く
+
+### LINE設定案内 UI
+
+`lineGroupId` が未設定のカレンダーでは、カレンダー画面のヘッダーに設定案内を表示する:
+
+- LINE Bot を追加するリンクボタン（`https://line.me/R/ti/p/@{basicId}`）
+- 共有コードのコピーボタン付き表示
+
+`lineGroupId` が設定済みの場合はこの案内を非表示にする。
 
 ### Webhook エンドポイント
 
@@ -373,7 +408,9 @@ WHERE calendar_id = :calendarId
 POST /api/line/webhook
 ```
 
-署名検証必須（`@line/bot-sdk` の `validateSignature` を使用）。
+- 署名検証必須（`@line/bot-sdk` の `validateSignature` を使用）
+- `join` イベント: Bot がグループに参加した際、未設定カレンダーの最新1件に `lineGroupId` を保存（暫定）
+- `message` イベント: テキストが `登録コード: XXXXXX` 形式の場合、該当 `shareCode` のカレンダーに `lineGroupId` を保存
 
 ### 通知メッセージ例
 
@@ -408,9 +445,23 @@ POST /api/line/webhook
 
 ### カレンダー画面 (`/calendar/[id]`)
 
-- ヘッダー: カレンダー名 + メンバー一覧（カラードット + 名前）+ 戻るボタン
+- ヘッダー: 戻るボタン + カレンダー名 + メンバー一覧（カラードット + 名前）
+- LINE 未連携時: LINE設定案内（Bot追加リンク・登録コードコピー）を表示
 - FullCalendar 月表示
 - 日付クリック → DayModal
+
+#### CalendarView Props
+
+| Prop | 型 | 説明 |
+|------|-----|------|
+| `calendarId` | number | カレンダー ID |
+| `calendarName` | string | カレンダー名 |
+| `initialEvents` | EventType[] | 初期イベント一覧 |
+| `currentUserId` | number | ログイン中ユーザー ID |
+| `userColors` | Record<number, string> | ユーザーID → カラー |
+| `memberList` | Member[] | メンバー一覧（名前・カラー） |
+| `hasLineGroup` | boolean | LINE グループ連携済みか |
+| `shareCode` | string | カレンダー共有コード |
 
 ### DayModal
 
@@ -435,6 +486,8 @@ POST /api/line/webhook
 | 想定カレンダー数 | 100 以下 |
 | 対象デバイス | スマートフォン（ブラウザ） |
 | 画面更新 | Server Actions 後はクライアント state を直接更新（リロードなし） |
+| レスポンシブ | viewport メタタグで端末幅に合わせて表示 |
+| タップフィードバック | `button:active`, `a:active` に `opacity: 0.65; transform: scale(0.96)` を `!important` で適用。カレンダーセルは `.fc-daygrid-day:active { opacity: 0.7 }` で対応 |
 
 ---
 
@@ -446,8 +499,8 @@ POST /api/line/webhook
 | Phase 1 | 認証（登録・ログイン・ログアウト・Middleware） | 完了 |
 | Phase 2 | カレンダー管理（作成・参加・一覧） | 完了 |
 | Phase 3 | 予定管理（作成・表示・編集・削除・重複チェック） | 完了 |
-| Phase 4 | LINE 連携（Webhook・通知送信） | 未着手 |
-| Phase 5 | デプロイ（Vercel・環境変数設定） | 未着手 |
+| Phase 4 | LINE 連携（Webhook・通知送信・設定案内UI） | 完了 |
+| Phase 5 | デプロイ（Vercel・環境変数設定） | 完了 |
 
 ---
 
@@ -462,22 +515,23 @@ POST /api/line/webhook
   Vercel (Next.js App Router)
         │
         ├── API Routes (/api/auth/*)  ← 認証
+        ├── API Routes (/api/line/webhook) ← LINE Webhook 受信
         ├── Server Actions            ← カレンダー・イベント操作
         │
         ▼
    PostgreSQL (Neon) ── Prisma ORM
         │
         ▼
-   LINE Messaging API
+   LINE Messaging API（予定登録時に Push 通知）
 ```
 
 ### 各コンポーネント詳細
 
 #### フロントエンド / バックエンド
 
-- Vercel デプロイ
+- Vercel デプロイ（GitHub main ブランチへの push で自動デプロイ）
 - HTTPS 自動付与
-- 自動スケーリング（個人〜小規模利用向け）
+- ビルド時に `prisma generate` を実行（`package.json` の `build` スクリプト）
 
 #### データベース
 
@@ -487,13 +541,9 @@ POST /api/line/webhook
 
 #### LINE Bot / Webhook
 
-- Webhook URL: `https://{your-app}.vercel.app/api/line/webhook`
-- 予定登録時に通知送信（Phase 4 実装予定）
-
-#### デプロイ / CI
-
-- GitHub 連携で `push` → 自動デプロイ
-- main ブランチへのマージでデプロイ
+- Webhook URL: `https://car-calender-app-hiroki-sato-devs-projects.vercel.app/api/line/webhook`
+- LINE Official Account Manager で応答モード「Bot」・Webhook「オン」が必須
+- Vercel Authentication（Deployment Protection）は無効にする必要あり
 
 #### セキュリティ
 
@@ -504,12 +554,13 @@ POST /api/line/webhook
 | 機密情報管理 | DB 接続・JWT シークレット・LINE トークンは環境変数で管理 |
 | アクセス制御 | カレンダーメンバー以外はカレンダー画面にアクセス不可 |
 | 予定操作 | 編集・削除は自分の予定のみ可能 |
+| LINE Webhook | `validateSignature` で署名検証必須 |
 
 ### 環境変数
 
-| 変数名 | 説明 |
-|--------|------|
-| `DATABASE_URL` | Neon の PostgreSQL 接続文字列 |
-| `JWT_SECRET` | JWT 署名用シークレット |
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Bot チャンネルアクセストークン |
-| `LINE_CHANNEL_SECRET` | LINE Webhook 署名検証用シークレット |
+| 変数名 | 説明 | 設定場所 |
+|--------|------|----------|
+| `DATABASE_URL` | Neon の PostgreSQL 接続文字列 | `.env` + Vercel |
+| `JWT_SECRET` | JWT 署名用シークレット | `.env` + Vercel |
+| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Bot チャンネルアクセストークン | `.env` + Vercel |
+| `LINE_CHANNEL_SECRET` | LINE Webhook 署名検証用シークレット | `.env` + Vercel |
