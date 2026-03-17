@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "カーカレンダー",
-  description: "家族で車を共有するカレンダーアプリ",
+  title: "share-calender",
+  description: "シェアしてる物の使用予定が一目でわかるカレンダーアプリ",
 };
 
 export const viewport = {
