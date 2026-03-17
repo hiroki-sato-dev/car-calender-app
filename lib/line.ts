@@ -25,6 +25,7 @@ export function buildEventMessage(params: {
     d.toLocaleString("ja-JP", {
       month: "numeric",
       day: "numeric",
+      weekday: "short",
       hour: "2-digit",
       minute: "2-digit",
     });
