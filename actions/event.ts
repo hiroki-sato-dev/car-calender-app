@@ -63,7 +63,7 @@ export async function createEvent(data: {
   const calendar = await prisma.calendar.findUnique({ where: { id: data.calendarId } });
   if (calendar?.lineGroupId) {
     const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
+      ? `https://car-calender-app.vercel.app`
       : "http://localhost:3000";
     const message = buildEventMessage({
       calendarName: calendar.name,
