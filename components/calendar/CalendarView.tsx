@@ -19,6 +19,8 @@ type Props = {
   currentUserId: number;
   userColors: Record<number, string>;
   memberList: Member[];
+  hasLineGroup: boolean;
+  shareCode: string;
 };
 
 export default function CalendarView({
@@ -28,6 +30,8 @@ export default function CalendarView({
   currentUserId,
   userColors,
   memberList,
+  hasLineGroup,
+  shareCode,
 }: Props) {
   const router = useRouter();
   const [events, setEvents] = useState(initialEvents);
@@ -128,6 +132,32 @@ export default function CalendarView({
             </div>
           ))}
         </div>
+        {!hasLineGroup && (
+          <div className="mt-3 p-3 rounded-lg bg-zinc-900 border border-zinc-700 text-xs text-zinc-300 space-y-2">
+            <p className="font-semibold text-white">LINE通知を設定する</p>
+            <p>① LINEグループにBotを追加</p>
+            <a
+              href="https://line.me/R/ti/p/@937alenh"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block px-3 py-1.5 rounded bg-[#06C755] text-white font-semibold text-xs"
+            >
+              LINE Bot を追加
+            </a>
+            <p>② グループで以下のコードを送信</p>
+            <div className="flex items-center gap-2">
+              <code className="bg-zinc-800 px-2 py-1 rounded text-zinc-100">
+                登録コード: {shareCode}
+              </code>
+              <button
+                onClick={() => navigator.clipboard.writeText(`登録コード: ${shareCode}`)}
+                className="text-zinc-400 hover:text-white text-xs underline"
+              >
+                コピー
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* カレンダー */}

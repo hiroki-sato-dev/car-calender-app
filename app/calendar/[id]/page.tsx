@@ -44,6 +44,8 @@ export default async function CalendarPage({ params }: Props) {
       currentUserId={session!.userId}
       userColors={userColors}
       memberList={memberList}
+      hasLineGroup={!!calendar.lineGroupId}
+      shareCode={calendar.shareCode}
     />
   );
 }
