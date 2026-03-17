@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import FullCalendar from "@fullcalendar/react";
+import { EventInput, EventClickArg } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { EventType } from "@/types/event";
@@ -35,7 +36,7 @@ export default function CalendarView({
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [eventModalOpen, setEventModalOpen] = useState(false);
 
-  const fcEvents = events.flatMap((e) => {
+  const fcEvents: EventInput[] = events.flatMap((e): EventInput[] => {
     const startD = new Date(e.startTime);
     const endD = new Date(e.endTime);
     const isMultiDay = startD.toDateString() !== endD.toDateString();
@@ -75,8 +76,8 @@ export default function CalendarView({
     setDayModalOpen(true);
   }
 
-  function handleEventClick(info: { event: { extendedProps: { event: EventType } } }) {
-    const date = info.event.extendedProps.event.startTime.slice(0, 10);
+  function handleEventClick(info: EventClickArg) {
+    const date = (info.event.extendedProps.event as EventType).startTime.slice(0, 10);
     setSelectedDate(date);
     setSelectedEvent(null);
     setDayModalOpen(true);
