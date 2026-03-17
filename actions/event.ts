@@ -62,8 +62,12 @@ export async function createEvent(data: {
   // LINE 通知（lineGroupId が設定されている場合のみ）
   const calendar = await prisma.calendar.findUnique({ where: { id: data.calendarId } });
   if (calendar?.lineGroupId) {
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000";
     const message = buildEventMessage({
       calendarName: calendar.name,
+      calendarUrl: `${baseUrl}/calendar/${calendar.id}`,
       userName: event.user.name,
       title: event.title,
       memo: event.memo,
