@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "share-calender",
+  title: "share-calendar",
   description: "シェアしてる物の使用予定が一目でわかるカレンダーアプリ",
 };
 
