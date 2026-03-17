@@ -30,7 +30,8 @@ export default function DayModal({
     const d = new Date(iso);
     const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
     if (!showDate) return time;
-    return `${d.getMonth() + 1}/${d.getDate()} ${time}`;
+    const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+    return `${d.getMonth() + 1}/${d.getDate()}(${weekdays[d.getDay()]}) ${time}`;
   };
 
   return (

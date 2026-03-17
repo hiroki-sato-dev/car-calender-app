@@ -135,13 +135,16 @@ export default function EventModal({
             <div>
               <p className="text-zinc-500 text-xs mb-1">日時</p>
               <p className="text-white">
-                {new Date(selectedEvent.startTime).toLocaleString("ja-JP", {
-                  month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
-                })}
-                {" 〜 "}
-                {new Date(selectedEvent.endTime).toLocaleString("ja-JP", {
-                  hour: "2-digit", minute: "2-digit",
-                })}
+                {(() => {
+                  const s = new Date(selectedEvent.startTime);
+                  const e = new Date(selectedEvent.endTime);
+                  const isMultiDay = s.toDateString() !== e.toDateString();
+                  const startStr = s.toLocaleString("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
+                  const endStr = isMultiDay
+                    ? e.toLocaleString("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" })
+                    : e.toLocaleString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+                  return <>{startStr} 〜 {endStr}</>;
+                })()}
               </p>
             </div>
             {selectedEvent.memo && (
