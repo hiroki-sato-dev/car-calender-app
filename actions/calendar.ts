@@ -46,6 +46,26 @@ export async function joinCalendar(shareCode: string) {
   return { success: true, calendar };
 }
 
+export async function leaveCalendar(calendarId: number) {
+  const session = await getSession();
+  if (!session) return { error: "ログインが必要です" };
+
+  const member = await prisma.calendarMember.findFirst({
+    where: { calendarId, userId: session.userId },
+  });
+  if (!member) return { error: "参加していません" };
+
+  await prisma.calendarMember.delete({ where: { id: member.id } });
+
+  const remaining = await prisma.calendarMember.count({ where: { calendarId } });
+  if (remaining === 0) {
+    await prisma.event.deleteMany({ where: { calendarId } });
+    await prisma.calendar.delete({ where: { id: calendarId } });
+  }
+
+  return { success: true };
+}
+
 export async function getCalendars() {
   const session = await getSession();
   if (!session) return [];

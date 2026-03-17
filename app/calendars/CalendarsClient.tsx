@@ -28,6 +28,7 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
   const [navigatingId, setNavigatingId] = useState<number | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -222,10 +223,10 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
                   <p className="text-3xl font-bold tracking-widest text-blue-400">{newShareCode}</p>
                 </div>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(newShareCode); }}
+                  onClick={() => { navigator.clipboard.writeText(newShareCode); setCodeCopied(true); setTimeout(() => setCodeCopied(false), 2000); }}
                   className="w-full py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition text-sm mb-2"
                 >
-                  コードをコピー
+                  {codeCopied ? "コピーしました" : "コードをコピー"}
                 </button>
                 <button onClick={closeModal} className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-sm">
                   閉じる

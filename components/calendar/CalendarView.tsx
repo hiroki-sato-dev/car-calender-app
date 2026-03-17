@@ -9,6 +9,8 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { EventType } from "@/types/event";
 import EventModal from "@/components/event/EventModal";
 import DayModal from "@/components/calendar/DayModal";
+import { leaveCalendar } from "@/actions/calendar";
+import Spinner from "@/components/ui/Spinner";
 
 type Member = { userId: number; name: string; color: string };
 
@@ -40,6 +42,14 @@ export default function CalendarView({
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+
+  async function handleLeave() {
+    setLeaveLoading(true);
+    await leaveCalendar(calendarId);
+    router.push("/calendars");
+  }
 
   function handleCopyCode() {
     navigator.clipboard.writeText(`登録コード: ${shareCode}`);
@@ -125,14 +135,22 @@ export default function CalendarView({
     <div className="min-h-screen bg-[#0f0f0f] text-white">
       {/* ヘッダー */}
       <header className="border-b border-zinc-800 px-4 py-3">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/calendars")}
+              className="text-zinc-400 hover:text-white transition text-sm"
+            >
+              ← 戻る
+            </button>
+            <h1 className="font-bold text-lg">{calendarName}</h1>
+          </div>
           <button
-            onClick={() => router.push("/calendars")}
-            className="text-zinc-400 hover:text-white transition text-sm"
+            onClick={() => setLeaveConfirmOpen(true)}
+            className="text-xs text-zinc-500 hover:text-red-400 transition"
           >
-            ← 戻る
+            カレンダーを削除
           </button>
-          <h1 className="font-bold text-lg">{calendarName}</h1>
         </div>
         <div className="flex flex-wrap gap-3">
           {memberList.map(({ userId, name, color }) => (
@@ -214,6 +232,41 @@ export default function CalendarView({
           }}
         />
       </div>
+
+      {/* 退会確認モーダル */}
+      {leaveConfirmOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50"
+          onClick={() => setLeaveConfirmOpen(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-bold text-lg mb-2">カレンダーを削除</h2>
+            <p className="text-zinc-400 text-sm mb-5">
+              「{calendarName}」を削除しますか？<br />
+              他のメンバーのカレンダーには影響しません。
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setLeaveConfirmOpen(false)}
+                className="flex-1 py-2.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleLeave}
+                disabled={leaveLoading}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white transition text-sm disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {leaveLoading && <Spinner />}
+                {leaveLoading ? "削除中..." : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* コピー完了トースト */}
       {codeCopied && (
