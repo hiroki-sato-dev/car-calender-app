@@ -18,3 +18,81 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* FullCalendar ダークテーマ */
+.calendar-wrapper .fc {
+  --fc-border-color: #27272a;
+  --fc-page-bg-color: #0f0f0f;
+  --fc-neutral-bg-color: #18181b;
+  --fc-today-bg-color: #1e3a5f;
+  --fc-event-bg-color: #2563eb;
+  --fc-event-border-color: #2563eb;
+  color: #f5f5f5;
+}
+
+.calendar-wrapper .fc .fc-col-header-cell {
+  background: #18181b;
+}
+
+.calendar-wrapper .fc .fc-col-header-cell-cushion,
+.calendar-wrapper .fc .fc-daygrid-day-number {
+  color: #a1a1aa;
+  text-decoration: none;
+}
+
+.calendar-wrapper .fc .fc-day-today .fc-daygrid-day-number {
+  color: #60a5fa;
+  font-weight: bold;
+}
+
+.calendar-wrapper .fc .fc-button {
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  color: #f5f5f5;
+}
+
+.calendar-wrapper .fc .fc-button:hover {
+  background: #3f3f46;
+}
+
+.calendar-wrapper .fc .fc-toolbar-title {
+  color: #f5f5f5;
+  font-size: 1.1rem;
+}
+
+/* ドット（1日の予定）: 背景を透明に */
+.calendar-wrapper .fc .fc-event.fc-event-dot-item {
+  cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 1px !important;
+}
+
+/* ドットのハーネスはインライン */
+.calendar-wrapper .fc .fc-daygrid-event-harness:has(.fc-event-dot-item) {
+  display: inline-block;
+  width: auto;
+}
+
+/* 全セルを固定高にして週ごとの高さを均一に保つ */
+.calendar-wrapper .fc .fc-daygrid-day-frame {
+  height: 64px !important;
+  overflow: hidden;
+}
+
+/* day events エリア */
+.calendar-wrapper .fc .fc-daygrid-day-events {
+  padding: 2px 4px 2px;
+  min-height: 0;
+}
+
+
+.fc-dot-event {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

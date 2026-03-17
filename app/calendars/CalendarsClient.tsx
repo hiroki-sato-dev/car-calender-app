@@ -24,6 +24,19 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
   const [newShareCode, setNewShareCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [copied, setCopied] = useState<number | null>(null);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }
+
+  function copyCode(id: number, code: string) {
+    navigator.clipboard.writeText(code);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  }
 
   async function handleCreate() {
     if (!inputName.trim()) return;
@@ -64,11 +77,28 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white">
+    <div className="min-h-screen bg-[#0f0f0f] text-white" onClick={() => setUserMenuOpen(false)}>
       {/* ヘッダー */}
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
         <span className="font-bold text-lg">シェアカレンダー</span>
-        <span className="text-zinc-400 text-sm">{userName}</span>
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => setUserMenuOpen((v) => !v)}
+            className="text-sm text-zinc-300 hover:text-white transition px-2 py-1 rounded-lg hover:bg-zinc-800"
+          >
+            {userName}
+          </button>
+          {userMenuOpen && (
+            <div className="absolute right-0 top-full mt-1 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl overflow-hidden z-50 min-w-32">
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-zinc-700 transition"
+              >
+                ログアウト
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       <main className="max-w-lg mx-auto px-6 py-8">
@@ -99,14 +129,22 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
         ) : (
           <ul className="space-y-3">
             {calendars.map((cal) => (
-              <li key={cal.id}>
+              <li key={cal.id} className="bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-600 transition">
                 <button
                   onClick={() => router.push(`/calendar/${cal.id}`)}
-                  className="w-full text-left bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 hover:border-zinc-600 transition"
+                  className="w-full text-left px-5 pt-4 pb-3"
                 >
                   <p className="font-semibold">{cal.name}</p>
-                  <p className="text-zinc-500 text-xs mt-1">コード: {cal.shareCode}</p>
                 </button>
+                <div className="flex items-center justify-between px-5 pb-3">
+                  <p className="text-zinc-500 text-xs">コード: {cal.shareCode}</p>
+                  <button
+                    onClick={() => copyCode(cal.id, cal.shareCode)}
+                    className="text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded-md px-2 py-1 transition"
+                  >
+                    {copied === cal.id ? "コピーしました" : "コピー"}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 基本方針
+
+- 返答は必ず日本語で行う
+
 ## UI 方針
 
 - 絵文字は使用しない
