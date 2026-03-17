@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { sendLineNotification, buildEventMessage } from "@/lib/line";
 
 export async function getEvents(calendarId: number) {
   const events = await prisma.event.findMany({
@@ -57,6 +58,19 @@ export async function createEvent(data: {
     },
     include: { user: { select: { name: true } } },
   });
+
+  // LINE 通知（lineGroupId が設定されている場合のみ）
+  const calendar = await prisma.calendar.findUnique({ where: { id: data.calendarId } });
+  if (calendar?.lineGroupId) {
+    const message = buildEventMessage({
+      userName: event.user.name,
+      title: event.title,
+      memo: event.memo,
+      startTime: event.startTime,
+      endTime: event.endTime,
+    });
+    await sendLineNotification(calendar.lineGroupId, message).catch(() => {});
+  }
 
   return {
     success: true,
