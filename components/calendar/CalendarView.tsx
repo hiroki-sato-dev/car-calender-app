@@ -39,6 +39,13 @@ export default function CalendarView({
   const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  function handleCopyCode() {
+    navigator.clipboard.writeText(`登録コード: ${shareCode}`);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  }
 
   const fcEvents: EventInput[] = events.flatMap((e): EventInput[] => {
     const startD = new Date(e.startTime);
@@ -153,7 +160,7 @@ export default function CalendarView({
                 登録コード: {shareCode}
               </code>
               <button
-                onClick={() => navigator.clipboard.writeText(`登録コード: ${shareCode}`)}
+                onClick={handleCopyCode}
                 className="text-zinc-400 hover:text-white text-xs underline"
               >
                 コピー
@@ -207,6 +214,13 @@ export default function CalendarView({
           }}
         />
       </div>
+
+      {/* コピー完了トースト */}
+      {codeCopied && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-700 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 pointer-events-none">
+          コピーしました
+        </div>
+      )}
 
       {/* 日付モーダル */}
       {dayModalOpen && selectedDate && (

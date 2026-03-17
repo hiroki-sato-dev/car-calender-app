@@ -26,9 +26,11 @@ export default function DayModal({
     weekday: "short",
   });
 
-  const fmt = (iso: string) => {
+  const fmt = (iso: string, showDate: boolean) => {
     const d = new Date(iso);
-    return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+    if (!showDate) return time;
+    return `${d.getMonth() + 1}/${d.getDate()} ${time}`;
   };
 
   return (
@@ -66,7 +68,10 @@ export default function DayModal({
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium truncate">{e.title}</p>
                     <p className="text-zinc-400 text-xs mt-0.5">
-                      {fmt(e.startTime)} 〜 {fmt(e.endTime)}　{e.userName}
+                      {(() => {
+                        const isMultiDay = new Date(e.startTime).toDateString() !== new Date(e.endTime).toDateString();
+                        return <>{fmt(e.startTime, isMultiDay)} 〜 {fmt(e.endTime, isMultiDay)}　{e.userName}</>;
+                      })()}
                     </p>
                   </div>
                 </button>

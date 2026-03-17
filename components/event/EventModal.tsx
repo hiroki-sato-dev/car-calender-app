@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { EventType } from "@/types/event";
 import { createEvent, updateEvent, deleteEvent } from "@/actions/event";
+import Spinner from "@/components/ui/Spinner";
 
 type Props = {
   calendarId: number;
@@ -161,8 +162,9 @@ export default function EventModal({
                 <button
                   onClick={handleDelete}
                   disabled={loading}
-                  className="flex-1 py-2.5 rounded-lg bg-red-600/20 border border-red-600/40 text-red-400 hover:bg-red-600/30 transition text-sm disabled:opacity-40"
+                  className="flex-1 py-2.5 rounded-lg bg-red-600/20 border border-red-600/40 text-red-400 hover:bg-red-600/30 transition text-sm disabled:opacity-40 flex items-center justify-center gap-2"
                 >
+                  {loading && <Spinner />}
                   {loading ? "削除中..." : "削除"}
                 </button>
               </div>
@@ -242,8 +244,9 @@ export default function EventModal({
               <button
                 onClick={mode === "edit" ? handleUpdate : handleCreate}
                 disabled={loading}
-                className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-sm disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition text-sm disabled:opacity-40 flex items-center justify-center gap-2"
               >
+                {loading && <Spinner />}
                 {loading ? "処理中..." : mode === "edit" ? "保存" : "登録"}
               </button>
             </div>
