@@ -103,7 +103,7 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
 
       <main className="max-w-lg mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold">カレンダー一覧</h1>
+          <h1 className="text-xl font-bold">登録済みカレンダー</h1>
           <div className="flex gap-2">
             <button
               onClick={() => { setModal("join"); setError(null); }}
@@ -129,7 +129,7 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
         ) : (
           <ul className="space-y-3">
             {calendars.map((cal) => (
-              <li key={cal.id} className="bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-600 transition">
+              <li key={cal.id} className="bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-600 active:scale-[0.98] active:opacity-75 transition cursor-pointer">
                 <button
                   onClick={() => router.push(`/calendar/${cal.id}`)}
                   className="w-full text-left px-5 pt-4 pb-3"

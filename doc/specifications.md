@@ -26,6 +26,7 @@
 - 黒基調のダークテーマ（背景: `#0f0f0f`、カード: `zinc-900`）
 - モバイルファースト（スマートフォンブラウザを主対象とする）
 - viewport メタタグを設定し、スマートフォンの画面幅に合わせて表示する
+- タップ可能な要素（`button`, `a`, カレンダーセル）はすべてタップフィードバックを付与する
 
 ---
 
@@ -486,6 +487,7 @@ POST /api/line/webhook
 | 対象デバイス | スマートフォン（ブラウザ） |
 | 画面更新 | Server Actions 後はクライアント state を直接更新（リロードなし） |
 | レスポンシブ | viewport メタタグで端末幅に合わせて表示 |
+| タップフィードバック | `button:active`, `a:active` に `opacity: 0.65; transform: scale(0.96)` を `!important` で適用。カレンダーセルは `.fc-daygrid-day:active { opacity: 0.7 }` で対応 |
 
 ---
 
