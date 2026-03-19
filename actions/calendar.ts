@@ -71,9 +71,55 @@ export async function getCalendars() {
   if (!session) return [];
 
   const members = await prisma.calendarMember.findMany({
-    where: { userId: session.userId },
+    where: { userId: session.userId, calendar: { isPersonal: false } },
     include: { calendar: true },
   });
 
   return members.map((m) => m.calendar);
+}
+
+export async function getMyCalendar() {
+  const session = await getSession();
+  if (!session) return null;
+
+  const member = await prisma.calendarMember.findFirst({
+    where: { userId: session.userId, calendar: { isPersonal: true } },
+    include: { calendar: true },
+  });
+
+  return member?.calendar ?? null;
+}
+
+export async function createMyCalendar() {
+  const session = await getSession();
+  if (!session) return { error: "ログインが必要です" };
+
+  const existing = await prisma.calendarMember.findFirst({
+    where: { userId: session.userId, calendar: { isPersonal: true } },
+  });
+  if (existing) return { error: "すでにマイカレンダーが存在します" };
+
+  const shareCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+  const currentUser = await prisma.user.findUnique({ where: { id: session.userId } });
+  const lineLinkCode = currentUser?.lineLinkCode ?? Math.random().toString(36).substring(2, 9).toUpperCase();
+
+  if (!currentUser?.lineLinkCode) {
+    await prisma.user.update({
+      where: { id: session.userId },
+      data: { lineLinkCode },
+    });
+  }
+
+  const calendar = await prisma.calendar.create({
+    data: {
+      name: "マイカレンダー",
+      shareCode,
+      isPersonal: true,
+      createdBy: session.userId,
+      members: { create: { userId: session.userId } },
+    },
+  });
+
+  return { success: true, calendar, lineLinkCode };
 }

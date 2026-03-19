@@ -29,6 +29,19 @@ npx prisma generate                   # Regenerate Prisma client after schema ch
 - [doc/specifications.md](doc/specifications.md) — 技術仕様書（DB設計・API・UI・インフラ構成）
 - [doc/roadmap.md](doc/roadmap.md) — フェーズ別開発ロードマップ（実装順序・完了基準）
 
+### 機能追加ドキュメント
+
+新規機能は `doc/feature/<機能名>/` に以下の3ファイルで管理する:
+- `requirements.md` — 要件・やりたいこと
+- `technical-spec.md` — DB・API・コンポーネント等の技術仕様
+- `design-policy.md` — 設計方針・実装順序・未決定事項
+
+実装前に必ず該当フォルダを参照すること。
+
+| 機能 | フォルダ |
+|------|---------|
+| マイカレンダー | [doc/feature/myCalendar/](doc/feature/myCalendar/) |
+
 ## Architecture
 
 ### Overview

@@ -80,6 +80,18 @@ button:active, a:active {
   font-size: 1.1rem;
 }
 
+.my-calendar-wrapper .fc-daygrid-day .fc-daygrid-day-frame {
+  min-height: 44px !important;
+}
+
+.my-calendar-wrapper .my-cal-selected-day {
+  background-color: rgba(59, 130, 246, 0.25) !important;
+}
+
+.my-calendar-wrapper .fc-daygrid-more-link {
+  display: none;
+}
+
 /* ドット（1日の予定）: 背景を透明に */
 .calendar-wrapper .fc .fc-event.fc-event-dot-item {
   cursor: pointer;

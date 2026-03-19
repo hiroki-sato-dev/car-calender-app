@@ -14,6 +14,7 @@ type Props = {
   onCreated: (event: EventType) => void;
   onUpdated: (event: EventType) => void;
   onDeleted: (eventId: number) => void;
+  showRegistrant?: boolean;
 };
 
 export default function EventModal({
@@ -25,6 +26,7 @@ export default function EventModal({
   onCreated,
   onUpdated,
   onDeleted,
+  showRegistrant = true,
 }: Props) {
   const toDate = (iso: string) => {
     const d = new Date(iso);
@@ -128,10 +130,12 @@ export default function EventModal({
               <p className="text-zinc-500 text-xs mb-1">タイトル</p>
               <p className="text-white font-medium">{selectedEvent.title}</p>
             </div>
-            <div>
-              <p className="text-zinc-500 text-xs mb-1">登録者</p>
-              <p className="text-white">{selectedEvent.userName}</p>
-            </div>
+            {showRegistrant && (
+              <div>
+                <p className="text-zinc-500 text-xs mb-1">登録者</p>
+                <p className="text-white">{selectedEvent.userName}</p>
+              </div>
+            )}
             <div>
               <p className="text-zinc-500 text-xs mb-1">日時</p>
               <p className="text-white">
