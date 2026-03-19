@@ -209,16 +209,29 @@ export default function CalendarsClient({ calendars: initial, userName, myCalend
                 )}
               </button>
               {!lineLinked && lineLinkCode && (
-                <div className="px-5 pb-4 border-t border-zinc-800 pt-3">
-                  <p className="text-zinc-500 text-xs mb-2">マイカレンダーBotに以下のコードを送って連携できます</p>
-                  <div className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
-                    <span className="text-sm text-blue-400 font-mono">LINE連携: {lineLinkCode}</span>
-                    <button
-                      onClick={copyLinkCode}
-                      className="text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded-md px-2 py-1 transition ml-2 shrink-0"
+                <div className="px-5 pb-4 border-t border-zinc-800 pt-3 space-y-3">
+                  <div>
+                    <p className="text-zinc-400 text-xs font-semibold mb-1">① マイカレンダーBotを追加</p>
+                    <a
+                      href="https://line.me/R/ti/p/@499ivlyn"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block px-3 py-1.5 rounded bg-[#06C755] text-white font-semibold text-xs"
                     >
-                      {linkCodeCopied ? "コピーしました" : "コピー"}
-                    </button>
+                      LINE Bot を追加
+                    </a>
+                  </div>
+                  <div>
+                    <p className="text-zinc-400 text-xs font-semibold mb-1">② 以下のコードをBotに送信</p>
+                    <div className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
+                      <span className="text-sm text-blue-400 font-mono">LINE連携: {lineLinkCode}</span>
+                      <button
+                        onClick={copyLinkCode}
+                        className="text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded-md px-2 py-1 transition ml-2 shrink-0"
+                      >
+                        {linkCodeCopied ? "コピーしました" : "コピー"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
