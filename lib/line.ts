@@ -26,6 +26,7 @@ export function buildEventMessage(params: {
 }) {
   const fmt = (d: Date) =>
     d.toLocaleString("ja-JP", {
+      timeZone: "Asia/Tokyo",
       month: "numeric",
       day: "numeric",
       weekday: "short",
