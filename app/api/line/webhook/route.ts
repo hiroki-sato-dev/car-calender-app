@@ -29,7 +29,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 「登録コード: XXXXXX」を受信 → カレンダーに lineGroupId を保存して返信
+    // 個別チャットでメッセージを受信 → 案内メッセージを返信
+    if (
+      event.type === "message" &&
+      event.source.type === "user"
+    ) {
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{
+          type: "text",
+          text: "メッセージありがとうございます！\n\n申し訳ありませんが、このアカウントでは個別に対応はできません。\n\n予定の登録通知はグループ作成、またはこのアカウントをグループに追加した後に、グループ内のチャットで登録コードをご入力ください。",
+        }],
+      });
+    }
+
+    // グループで「登録コード: XXXXXX」を受信 → カレンダーに lineGroupId を保存して返信
     if (
       event.type === "message" &&
       event.message.type === "text" &&
