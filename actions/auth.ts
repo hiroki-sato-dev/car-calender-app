@@ -89,3 +89,31 @@ export async function logout() {
   cookieStore.delete("token");
   return { success: true };
 }
+
+export async function getLineLinkCode() {
+  const { getSession } = await import("@/lib/auth");
+  const session = await getSession();
+  if (!session) return { error: "ログインが必要です" };
+
+  const user = await prisma.user.findUnique({ where: { id: session.userId } });
+  if (!user) return { error: "ユーザーが見つかりません" };
+
+  if (user.lineLinkCode) return { code: user.lineLinkCode };
+
+  const code = Math.random().toString(36).substring(2, 9).toUpperCase();
+  await prisma.user.update({ where: { id: session.userId }, data: { lineLinkCode: code } });
+  return { code };
+}
+
+export async function unlinkLine() {
+  const { getSession } = await import("@/lib/auth");
+  const session = await getSession();
+  if (!session) return { error: "ログインが必要です" };
+
+  await prisma.user.update({
+    where: { id: session.userId },
+    data: { lineUserId: null },
+  });
+
+  return { success: true };
+}
