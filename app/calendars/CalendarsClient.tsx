@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCalendar, joinCalendar } from "@/actions/calendar";
-import { updateUserName } from "@/actions/auth";
+import { createCalendar, joinCalendar, createMyCalendar } from "@/actions/calendar";
+import { updateUserName, unlinkLine } from "@/actions/auth";
 import Spinner from "@/components/ui/Spinner";
 
 type Calendar = {
@@ -15,11 +15,17 @@ type Calendar = {
 type Props = {
   calendars: Calendar[];
   userName: string;
+  myCalendar: { id: number; name: string } | null;
+  lineLinkCode: string | null;
+  lineLinked: boolean;
 };
 
-export default function CalendarsClient({ calendars: initial, userName }: Props) {
+export default function CalendarsClient({ calendars: initial, userName, myCalendar: initialMyCalendar, lineLinkCode: initialLineLinkCode, lineLinked: initialLineLinked }: Props) {
   const router = useRouter();
   const [calendars, setCalendars] = useState(initial);
+  const [myCalendar, setMyCalendar] = useState(initialMyCalendar);
+  const [lineLinkCode, setLineLinkCode] = useState(initialLineLinkCode);
+  const [lineLinked, setLineLinked] = useState(initialLineLinked);
   const [modal, setModal] = useState<"create" | "join" | "code" | null>(null);
   const [inputName, setInputName] = useState("");
   const [inputCode, setInputCode] = useState("");
@@ -27,18 +33,48 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [navigatingId, setNavigatingId] = useState<number | null>(null);
+  const [myCalendarNavigating, setMyCalendarNavigating] = useState(false);
+  const [myCalendarCreating, setMyCalendarCreating] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [linkCodeCopied, setLinkCodeCopied] = useState(false);
   const [nameModal, setNameModal] = useState(false);
   const [inputNewName, setInputNewName] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
   const [nameLoading, setNameLoading] = useState(false);
   const [currentUserName, setCurrentUserName] = useState(userName);
+  const [unlinkLoading, setUnlinkLoading] = useState(false);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
+  }
+
+  async function handleCreateMyCalendar() {
+    setMyCalendarCreating(true);
+    const result = await createMyCalendar();
+    setMyCalendarCreating(false);
+    if (result.error) return;
+    if (result.calendar) {
+      setMyCalendar(result.calendar);
+      if (result.lineLinkCode) setLineLinkCode(result.lineLinkCode);
+    }
+  }
+
+  async function handleUnlinkLine() {
+    setUnlinkLoading(true);
+    await unlinkLine();
+    setUnlinkLoading(false);
+    setLineLinked(false);
+    setUserMenuOpen(false);
+  }
+
+  function copyLinkCode() {
+    if (!lineLinkCode) return;
+    navigator.clipboard.writeText(`LINE連携: ${lineLinkCode}`);
+    setLinkCodeCopied(true);
+    setTimeout(() => setLinkCodeCopied(false), 2000);
   }
 
   async function handleUpdateName() {
@@ -120,6 +156,15 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
               >
                 名前を変更
               </button>
+              {lineLinked && (
+                <button
+                  onClick={handleUnlinkLine}
+                  disabled={unlinkLoading}
+                  className="w-full text-left px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-700 transition border-t border-zinc-700 disabled:opacity-40"
+                >
+                  {unlinkLoading ? "解除中..." : "LINE連携を解除"}
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-zinc-700 transition border-t border-zinc-700"
@@ -132,8 +177,57 @@ export default function CalendarsClient({ calendars: initial, userName }: Props)
       </header>
 
       <main className="max-w-lg mx-auto px-6 py-8">
+
+        {/* マイカレンダーセクション */}
+        <div className="mb-8">
+          {!myCalendar ? (
+            <div className="rounded-xl border border-dashed border-zinc-700 overflow-hidden">
+              <button
+                onClick={handleCreateMyCalendar}
+                disabled={myCalendarCreating}
+                className="w-full py-4 text-zinc-400 hover:text-zinc-300 transition text-sm flex items-center justify-center gap-2"
+              >
+                {myCalendarCreating ? <><Spinner />作成中...</> : "＋ マイカレンダーを作成"}
+              </button>
+              <div className="border-t border-dashed border-zinc-800 px-5 py-3 space-y-1">
+                <p className="text-zinc-500 text-xs">自分だけの予定を管理できます</p>
+                <p className="text-zinc-500 text-xs">LINE連携で、トークから予定を追加もできます</p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-600 active:scale-[0.98] active:opacity-75 transition">
+              <button
+                onClick={() => { setMyCalendarNavigating(true); router.push("/my-calendar"); }}
+                disabled={myCalendarNavigating}
+                className="w-full text-left px-5 py-4 flex items-center justify-between"
+              >
+                <p className="font-semibold">マイカレンダー</p>
+                {myCalendarNavigating ? <Spinner /> : (
+                  lineLinked && (
+                    <span className="text-xs text-green-400 border border-green-400/30 bg-green-400/10 rounded-full px-2 py-0.5">連携済み</span>
+                  )
+                )}
+              </button>
+              {!lineLinked && lineLinkCode && (
+                <div className="px-5 pb-4 border-t border-zinc-800 pt-3">
+                  <p className="text-zinc-500 text-xs mb-2">マイカレンダーBotに以下のコードを送って連携できます</p>
+                  <div className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
+                    <span className="text-sm text-blue-400 font-mono">LINE連携: {lineLinkCode}</span>
+                    <button
+                      onClick={copyLinkCode}
+                      className="text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded-md px-2 py-1 transition ml-2 shrink-0"
+                    >
+                      {linkCodeCopied ? "コピーしました" : "コピー"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold">登録済みカレンダー</h1>
+          <h2 className="text-lg font-bold">シェアカレンダー</h2>
           <div className="flex gap-2">
             <button
               onClick={() => { setModal("join"); setError(null); }}

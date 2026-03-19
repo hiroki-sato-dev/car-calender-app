@@ -8,12 +8,15 @@ datasource db {
 }
 
 model User {
-  id           Int              @id @default(autoincrement())
-  name         String           @unique
-  passwordHash String
-  createdAt    DateTime         @default(now())
-  calendars    CalendarMember[]
-  events       Event[]
+  id               Int              @id @default(autoincrement())
+  name             String           @unique
+  passwordHash     String
+  createdAt        DateTime         @default(now())
+  lineUserId       String?          @unique
+  lineLinkCode     String?          @unique
+  calendars        CalendarMember[]
+  events           Event[]
+  conversationState LineConversationState?
 }
 
 model Calendar {
@@ -21,10 +24,20 @@ model Calendar {
   name        String
   shareCode   String           @unique
   lineGroupId String?
+  isPersonal  Boolean          @default(false)
   createdBy   Int
   createdAt   DateTime         @default(now())
   members     CalendarMember[]
   events      Event[]
+}
+
+model LineConversationState {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique
+  state      String   // "idle" | "waiting_title" | "waiting_datetime"
+  title      String?
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id])
 }
 
 model CalendarMember {

@@ -38,14 +38,17 @@ export async function createEvent(data: {
 
   if (end <= start) return { error: "終了時間は開始時間より後にしてください" };
 
-  const overlap = await prisma.event.findFirst({
-    where: {
-      calendarId: data.calendarId,
-      startTime: { lt: end },
-      endTime: { gt: start },
-    },
-  });
-  if (overlap) return { error: "この時間帯はすでに予定が入っています" };
+  const calendarInfo = await prisma.calendar.findUnique({ where: { id: data.calendarId } });
+  if (!calendarInfo?.isPersonal) {
+    const overlap = await prisma.event.findFirst({
+      where: {
+        calendarId: data.calendarId,
+        startTime: { lt: end },
+        endTime: { gt: start },
+      },
+    });
+    if (overlap) return { error: "この時間帯はすでに予定が入っています" };
+  }
 
   const event = await prisma.event.create({
     data: {
