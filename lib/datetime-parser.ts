@@ -14,11 +14,12 @@ export function parseJaDatetime(text: string): { start: Date; end: Date } | null
   const times = resolveTimes(text);
   if (!times) return null;
 
-  const start = new Date(date);
-  start.setHours(times.startH, times.startM, 0, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
-  const end = new Date(date);
-  end.setHours(times.endH, times.endM, 0, 0);
+  // JST として解釈させるため +09:00 を付与
+  const start = new Date(`${dateStr}T${pad(times.startH)}:${pad(times.startM)}:00+09:00`);
+  const end = new Date(`${dateStr}T${pad(times.endH)}:${pad(times.endM)}:00+09:00`);
 
   if (end <= start) return null;
 
