@@ -94,8 +94,10 @@ function resolveDate(text: string, today: Date): Date | null {
 }
 
 function resolveTimes(text: string): { startH: number; startM: number; endH: number; endM: number } | null {
-  // HH:MM〜HH:MM / HH:MM-HH:MM / HH:MMからHH:MM
-  const rangeColon = text.match(/(\d{1,2}):(\d{2})\s*[〜~\-からー]\s*(\d{1,2}):(\d{2})/);
+  const SEP = /(?:[〜~\-ー]|から)/;
+
+  // HH:MM〜HH:MM
+  const rangeColon = text.match(new RegExp(`(\\d{1,2}):(\\d{2})\\s*${SEP.source}\\s*(\\d{1,2}):(\\d{2})`));
   if (rangeColon) {
     return {
       startH: parseInt(rangeColon[1]), startM: parseInt(rangeColon[2]),
@@ -104,7 +106,7 @@ function resolveTimes(text: string): { startH: number; startM: number; endH: num
   }
 
   // X時Y分〜X時Y分 / X時〜X時
-  const rangeKanji = text.match(/(\d{1,2})時(?:(\d{1,2})分)?\s*[〜~\-からー]\s*(\d{1,2})時(?:(\d{1,2})分)?/);
+  const rangeKanji = text.match(new RegExp(`(\\d{1,2})時(?:(\\d{1,2})分)?\\s*${SEP.source}\\s*(\\d{1,2})時(?:(\\d{1,2})分)?`));
   if (rangeKanji) {
     return {
       startH: parseInt(rangeKanji[1]), startM: parseInt(rangeKanji[2] ?? "0"),
@@ -118,8 +120,7 @@ function resolveTimes(text: string): { startH: number; startM: number; endH: num
     const startH = parseInt(durationMatch[1]);
     const startM = parseInt(durationMatch[2] ?? "0");
     const dur = parseInt(durationMatch[3]);
-    const endH = startH + dur;
-    return { startH, startM, endH, endM: startM };
+    return { startH, startM, endH: startH + dur, endM: startM };
   }
 
   // HH:MMからY時間
@@ -132,7 +133,7 @@ function resolveTimes(text: string): { startH: number; startM: number; endH: num
   }
 
   // 午前/午後 X時〜X時
-  const ampmRange = text.match(/(午前|午後)(\d{1,2})時\s*[〜~\-からー]\s*(午前|午後)?(\d{1,2})時/);
+  const ampmRange = text.match(new RegExp(`(午前|午後)(\\d{1,2})時\\s*${SEP.source}\\s*(午前|午後)?(\\d{1,2})時`));
   if (ampmRange) {
     let startH = parseInt(ampmRange[2]);
     if (ampmRange[1] === "午後" && startH < 12) startH += 12;
@@ -140,6 +141,23 @@ function resolveTimes(text: string): { startH: number; startM: number; endH: num
     const endAmPm = ampmRange[3] ?? ampmRange[1];
     if (endAmPm === "午後" && endH < 12) endH += 12;
     return { startH, startM: 0, endH, endM: 0 };
+  }
+
+  // 午前/午後 X時のみ（終了時間なし → +1時間）
+  const ampmOnly = text.match(/(午前|午後)(\d{1,2})時(?:(\d{1,2})分)?/);
+  if (ampmOnly) {
+    let startH = parseInt(ampmOnly[2]);
+    const startM = parseInt(ampmOnly[3] ?? "0");
+    if (ampmOnly[1] === "午後" && startH < 12) startH += 12;
+    return { startH, startM, endH: startH + 1, endM: startM };
+  }
+
+  // X時のみ（終了時間なし → +1時間）
+  const timeOnly = text.match(/(\d{1,2})時(?:(\d{1,2})分)?/);
+  if (timeOnly) {
+    const startH = parseInt(timeOnly[1]);
+    const startM = parseInt(timeOnly[2] ?? "0");
+    return { startH, startM, endH: startH + 1, endM: startM };
   }
 
   return null;
