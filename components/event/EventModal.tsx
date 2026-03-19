@@ -59,8 +59,8 @@ export default function EventModal({
       calendarId,
       title,
       memo,
-      startTime: `${startDate}T${startTime}`,
-      endTime: `${endDate}T${endTime}`,
+      startTime: new Date(`${startDate}T${startTime}`).toISOString(),
+      endTime: new Date(`${endDate}T${endTime}`).toISOString(),
     });
     setLoading(false);
 
