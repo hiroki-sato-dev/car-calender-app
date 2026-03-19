@@ -25,9 +25,13 @@ const USAGE_MSG = `📅 マイカレンダーBotの使い方
 アプリのカレンダー一覧画面に表示されている連携コードを送ってください。
 例）LINE連携: XXXXXXX`;
 
+const APP_BASE_URL = "https://car-calender-app.vercel.app";
+
 const UNLINKED_MSG = `マイカレンダーと連携されていません。
 
-アプリのカレンダー一覧画面で連携コードを確認し、こちらに送ってください。
+以下のURLからアプリを開き、連携コードを確認してこちらに送ってください。
+${APP_BASE_URL}/calendars
+
 例）LINE連携: XXXXXXX`;
 
 export async function POST(req: NextRequest) {
